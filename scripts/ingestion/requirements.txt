@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+openai
+supabase
+tqdm
+python-dotenv
+pandas
+tiktoken

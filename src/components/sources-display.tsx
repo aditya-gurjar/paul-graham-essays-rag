@@ -35,7 +35,7 @@ export default function SourcesDisplay({ sources }: SourcesDisplayProps) {
         ) : (
           <ChevronDown className="h-3 w-3 mr-1" />
         )}{' '}
-        References ({uniqueSources.length})
+        References and Further Reading ({uniqueSources.length})
       </Button>
       
       {isExpanded && (

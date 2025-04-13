@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Message } from '../app/types';
+import { Message, Source } from '../app/types';
 import { v4 as uuidv4 } from 'uuid';
 import ChatMessage from '@/components/chat-message';
 import { Toaster } from '@/components/ui/sonner';
@@ -23,55 +23,104 @@ export default function Home() {
   }, [messages]);
   // No useToast hook needed with Sonner
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // In app/page.tsx
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
     
-    if (!input.trim()) return;
+  if (!input.trim()) return;
     
-    // Add user message
-    const userMessage: Message = {
-      id: uuidv4(),
-      role: 'user',
-      content: input,
-    };
-    
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-    
-    try {
-      // Call RAG API
-      const response = await fetch('/api/rag', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: userMessage.content }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to get a response');
-      }
-      
-      const data = await response.json();
-      
-      // Add assistant message
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: data.answer,
-        sources: data.sources,
-      };
-      
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error('Error fetching response:', error);
-      // Use Sonner's toast directly
-      toast.error('Failed to get a response. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+  // Add user message
+  const userMessage: Message = {
+    id: uuidv4(),
+    role: 'user',
+    content: input,
   };
+    
+  setMessages((prev) => [...prev, userMessage]);
+  setInput('');
+  setIsLoading(true);
+  
+  // Create temporary message for streaming
+  const tempMessageId = uuidv4();
+  setMessages((prev) => [
+    ...prev, 
+    { 
+      id: tempMessageId, 
+      role: 'assistant', 
+      content: '' 
+    }
+  ]);
+    
+  try {
+    // Call RAG API with streaming
+    const response = await fetch('/api/rag', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: userMessage.content }),
+    });
+      
+    if (!response.ok) {
+      throw new Error('Failed to get a response');
+    }
+    
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No reader available');
+    
+    // Process the stream
+    const decoder = new TextDecoder();
+    let sources: Source[] = [];
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n\n');
+      
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        
+        const data = JSON.parse(line.replace('data:', '').trim());
+        
+        if (data.content) {
+          // Update the message content incrementally
+          setMessages((prev) => 
+            prev.map((msg) => 
+              msg.id === tempMessageId
+                ? { ...msg, content: msg.content + data.content }
+                : msg
+            )
+          );
+        }
+        
+        if (data.sources) {
+          sources = data.sources;
+        }
+        
+        if (data.done) {
+          // Final update with sources
+          setMessages((prev) => 
+            prev.map((msg) => 
+              msg.id === tempMessageId
+                ? { ...msg, sources: sources || [] }
+                : msg
+            )
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching response:', error);
+    toast.error('Failed to get a response. Please try again.');
+    
+    // Remove the temporary message on error
+    setMessages((prev) => prev.filter(msg => msg.id !== tempMessageId));
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <main className="flex min-h-screen flex-col items-center p-4 md:p-24">
@@ -99,7 +148,9 @@ export default function Home() {
               ))
             )}
             
-            {isLoading && (
+            {/* Only show loading indicator if there's no streaming message */}
+            {isLoading && messages.length > 0 && 
+              messages[messages.length - 1].role === 'user' && (
               <ChatMessage 
                 message={{ 
                   id: 'loading', 

@@ -27,9 +27,17 @@ answer: string;
 sources: Array<{ title: string; url: string }>;
 }
 
-export interface Message {
-id: string;
-role: 'user' | 'assistant';
-content: string;
-sources?: Array<{ title: string; url: string }>;
-}
+// In types.ts, make sure you have:
+export interface Source {
+    id: number;
+    title: string;
+    url: string;
+  }
+  
+  // And update your Message interface if needed:
+  export interface Message {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    sources?: Source[];
+  }

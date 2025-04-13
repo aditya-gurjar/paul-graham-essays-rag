@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Add to your existing .gitignore
+supabase/docker/volumes/
+supabase/docker/logs/
+
+# But don't ignore the configuration files
+!supabase/docker/docker-compose.yml
+!supabase/docker/.env.example

@@ -36,6 +36,7 @@ npm install
 
 Create a Supabase project (or use a self-hosted instance)
 For self-hosted instance:
+
 1. Ensure you have Docker Desktop installed
 2. Navigate to the supabase/docker directory
 3. Run the following commands (in `supabase/docker`):
@@ -43,7 +44,7 @@ For self-hosted instance:
    docker compose pull
    docker compose up -d
    ```
-Run the SQL in `scripts/setup_database.sql` to set up necessary tables and extensions
+   Run the SQL in `scripts/setup_database.sql` to set up necessary tables and extensions
 
 ### 4. Configure environment variables
 

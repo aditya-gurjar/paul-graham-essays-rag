@@ -16,11 +16,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export async function POST(request: Request) {
   try {
     const { query } = await request.json();
-    console.log("Query: ", query)
+    console.log('Query: ', query);
     if (!query) {
       return NextResponse.json(
         { error: 'Query parameter is required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -44,16 +44,21 @@ export async function POST(request: Request) {
       console.error('Error performing similarity search:', error);
       return NextResponse.json(
         { error: 'Failed to perform search' },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    console.log("Found number of chunks: ", chunks.length)
+    console.log('Found number of chunks: ', chunks.length);
     // print similarity scores
-    console.log("Similarity scores: ", chunks.map((chunk: EssayChunk) => chunk.similarity))
+    console.log(
+      'Similarity scores: ',
+      chunks.map((chunk: EssayChunk) => chunk.similarity),
+    );
     // Get essay information for each chunk
-    const essayIds = [...new Set(chunks.map((chunk: EssayChunk) => chunk.essay_id))];
-    console.log("Number of unique essays: ", essayIds.length)
+    const essayIds = [
+      ...new Set(chunks.map((chunk: EssayChunk) => chunk.essay_id)),
+    ];
+    console.log('Number of unique essays: ', essayIds.length);
 
     const { data: essays, error: essaysError } = await supabase
       .from('essays')
@@ -64,13 +69,13 @@ export async function POST(request: Request) {
       console.error('Error fetching essay details:', essaysError);
       return NextResponse.json(
         { error: 'Failed to fetch essay details' },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Combine chunk data with essay data
     const results = chunks.map((chunk: EssayChunk) => {
-      const essay = essays.find((e) => e.id === chunk.essay_id);
+      const essay = essays.find(e => e.id === chunk.essay_id);
       return {
         chunk_id: chunk.id,
         essay_id: chunk.essay_id,
@@ -86,7 +91,7 @@ export async function POST(request: Request) {
     console.error('Unexpected error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

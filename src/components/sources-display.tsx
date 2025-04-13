@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,12 @@ interface SourcesDisplayProps {
 
 export default function SourcesDisplay({ sources }: SourcesDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   const uniqueSources = sources.filter(
     (source, index, self) =>
-      index === self.findIndex((s) => s.url === source.url)
+      index === self.findIndex(s => s.url === source.url),
   );
-  
+
   return (
     <div className="mt-3 pt-2 border-t border-muted-foreground/20">
       <Button
@@ -37,7 +37,7 @@ export default function SourcesDisplay({ sources }: SourcesDisplayProps) {
         )}{' '}
         References and Further Reading ({uniqueSources.length})
       </Button>
-      
+
       {isExpanded && (
         <div className="mt-2 space-y-1 pl-1">
           {uniqueSources.map((source, index) => (

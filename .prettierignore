@@ -1,0 +1,17 @@
+# Build artifacts
+.next
+out
+build
+dist
+
+# Node modules
+node_modules
+
+# Coverage reports
+coverage
+
+# Generated files
+*.generated.*
+
+# Public assets
+public

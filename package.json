@@ -9,7 +9,9 @@
     "lint": "next lint",
     "supabase:start": "cd supabase/docker && docker compose up -d",
     "supabase:stop": "cd supabase/docker && docker compose down",
-    "supabase:restart": "npm run supabase:stop && npm run supabase:start"
+    "supabase:restart": "npm run supabase:stop && npm run supabase:start",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\""
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.4",
@@ -37,6 +39,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
+    "prettier": "^3.5.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -19,12 +19,12 @@ const embeddingModel = 'text-embedding-3-small';
 async function getEmbedding(text: string) {
   // Clean text - remove extra whitespace
   text = text.replace(/\s+/g, ' ').trim();
-  
+
   const embeddingResponse = await openai.embeddings.create({
     model: embeddingModel,
     input: text,
   });
-  
+
   return embeddingResponse.data[0].embedding;
 }
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     if (!query) {
       return NextResponse.json(
         { error: 'Query parameter is required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -45,15 +45,15 @@ export async function POST(request: Request) {
     // Lower threshold and increase match count to get more potentially relevant results
     const { data: chunks, error } = await supabase.rpc('match_essay_chunks', {
       query_embedding: embedding,
-      match_threshold: 0.5,  // More permissive threshold
-      match_count: 15,       // Get more chunks for better context
+      match_threshold: 0.5, // More permissive threshold
+      match_count: 15, // Get more chunks for better context
     });
 
     if (error) {
       console.error('Error performing similarity search:', error);
       return NextResponse.json(
         { error: 'Failed to perform search' },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -63,24 +63,29 @@ export async function POST(request: Request) {
         async start(controller) {
           try {
             // Send a not found message
-            const noResultsMessage = "I couldn't find any relevant information in Paul Graham's essays for your query.";
-            
+            const noResultsMessage =
+              "I couldn't find any relevant information in Paul Graham's essays for your query.";
+
             // Stream the message in smaller chunks to simulate typing
             const words = noResultsMessage.split(' ');
             for (let i = 0; i < words.length; i++) {
               const content = words[i] + ' ';
               controller.enqueue(
-                new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`)
+                new TextEncoder().encode(
+                  `data: ${JSON.stringify({ content })}\n\n`,
+                ),
               );
               // Small delay between words for a natural typing effect
               await new Promise(resolve => setTimeout(resolve, 50));
             }
-            
+
             // Send empty sources and done flag
             controller.enqueue(
-              new TextEncoder().encode(`data: ${JSON.stringify({ sources: [], done: true })}\n\n`)
+              new TextEncoder().encode(
+                `data: ${JSON.stringify({ sources: [], done: true })}\n\n`,
+              ),
             );
-            
+
             controller.close();
           } catch (error) {
             console.error('Error:', error);
@@ -93,14 +98,16 @@ export async function POST(request: Request) {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
+          Connection: 'keep-alive',
         },
       });
     }
 
     // Get essay information for each chunk
-    const essayIds = [...new Set(chunks.map((chunk: EssayChunk) => chunk.essay_id))];
-    
+    const essayIds = [
+      ...new Set(chunks.map((chunk: EssayChunk) => chunk.essay_id)),
+    ];
+
     const { data: essays, error: essaysError } = await supabase
       .from('essays')
       .select('id, title, url')
@@ -110,48 +117,50 @@ export async function POST(request: Request) {
       console.error('Error fetching essay details:', essaysError);
       return NextResponse.json(
         { error: 'Failed to fetch essay details' },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Create a map of essay ID to a consistent reference number
     const essayRefMap = new Map();
-        essays.forEach((essay, index) => {
-        essayRefMap.set(essay.id, index + 1);
+    essays.forEach((essay, index) => {
+      essayRefMap.set(essay.id, index + 1);
     });
 
     // Create context using the consistent reference numbers
     const context = chunks
-    .map((chunk: EssayChunk) => {
-        const essay = essays.find((e) => e.id === chunk.essay_id);
+      .map((chunk: EssayChunk) => {
+        const essay = essays.find(e => e.id === chunk.essay_id);
         const refNumber = essayRefMap.get(essay?.id);
         return `[${refNumber}] From essay "${essay?.title}" (${essay?.url}):\n${chunk.chunk_text}`;
-    })
-    .join('\n\n');
+      })
+      .join('\n\n');
 
     // Format sources using the same reference numbers
-    const sources = essays.map((essay) => ({
-        id: essayRefMap.get(essay.id),
-        title: essay.title,
-        url: essay.url,
+    const sources = essays.map(essay => ({
+      id: essayRefMap.get(essay.id),
+      title: essay.title,
+      url: essay.url,
     }));
 
     // Format the references section
-    const uniqueSources = sources.filter(
-      (source, index, self) => 
-        index === self.findIndex((s) => s.title === source.title)
-    ).map(source => ({
-      id: source.id,
-      title: source.title,
-      url: source.url
-    }));
+    const uniqueSources = sources
+      .filter(
+        (source, index, self) =>
+          index === self.findIndex(s => s.title === source.title),
+      )
+      .map(source => ({
+        id: source.id,
+        title: source.title,
+        url: source.url,
+      }));
 
     // Create a streaming response
     const stream = new ReadableStream({
       async start(controller) {
         try {
           // Create context and sources as before
-          
+
           // Use streaming OpenAI API
           const completion = await openai.chat.completions.create({
             model: 'gpt-4-turbo',
@@ -182,7 +191,6 @@ export async function POST(request: Request) {
                 - End with a concise summary that captures the essence of Paul Graham's thinking
       
                 Your goal is to sound like an expert on Paul Graham's writing who can provide concrete, specific insights from his essays with rich detail and nuance.`,
-              
               },
               {
                 role: 'user',
@@ -194,21 +202,25 @@ export async function POST(request: Request) {
           });
 
           // let responseText = '';
-          
+
           // Process the stream
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || '';
             // responseText += content;
             controller.enqueue(
-              new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`)
+              new TextEncoder().encode(
+                `data: ${JSON.stringify({ content })}\n\n`,
+              ),
             );
           }
-          
+
           // Send the sources at the end
           controller.enqueue(
-            new TextEncoder().encode(`data: ${JSON.stringify({ sources: uniqueSources, done: true })}\n\n`)
+            new TextEncoder().encode(
+              `data: ${JSON.stringify({ sources: uniqueSources, done: true })}\n\n`,
+            ),
           );
-          
+
           controller.close();
         } catch (error) {
           console.error('Error:', error);
@@ -221,14 +233,14 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
       },
     });
   } catch (error) {
     console.error('Unexpected error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
